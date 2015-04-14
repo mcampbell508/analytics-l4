@@ -115,4 +115,95 @@ class Analytics {
 
 		throw new \Exception("Site $url is not present in your Analytics account.");
 	}
+
+
+    /*
+     * New methods.
+     */
+
+    /**
+     * Get the amount of visitors and pageViews.
+     *
+     * @param $id
+     * @param int $numberOfDays
+     * @param string $groupBy Possible values: date, yearMonth
+     * @return Collection
+     */
+    public function getVisitorsAndPageViews($id,$numberOfDays = 365, $groupBy = 'date')
+    {
+        list($startDate, $endDate) = $this->calculateNumberOfDays($numberOfDays);
+        return $this->getVisitorsAndPageViewsForPeriod($id, $startDate, $endDate, $groupBy);
+    }
+
+    /**
+     * Get the amount of visitors and pageviews for the given period.
+     *
+     * @param string $id
+     * @param Carbon|DateTime $startDate
+     * @param Carbon|DateTime $endDate
+     * @param string $groupBy Possible values: date, yearMonth
+     * @return Collection
+     */
+    public function getVisitorsAndPageViewsForPeriod($id,$startDate, $endDate, $groupBy = 'date')
+    {
+        $visitorData = [];
+        $answer = $this->query($id,$startDate, $endDate, 'ga:visits,ga:pageviews', ['dimensions' => 'ga:'.$groupBy]);
+        if (is_null($answer->rows)) {
+            return new Collection([]);
+        }
+        foreach ($answer->rows as $dateRow) {
+            $visitorData[] = [$groupBy => Carbon::createFromFormat(($groupBy == 'yearMonth' ? 'Ym' : 'Ymd'), $dateRow[0]), 'visitors' => $dateRow[1], 'pageViews' => $dateRow[2]];
+        }
+        return new Collection($visitorData);
+    }
+
+    /**
+     * Get the most visited pages.
+     *
+     * @param $id
+     * @param int $numberOfDays
+     * @param int $maxResults
+     * @return Collection
+     */
+    public function getMostVisitedPages($id,$numberOfDays = 365, $maxResults = 20)
+    {
+        list($startDate, $endDate) = $this->calculateNumberOfDays($numberOfDays);
+        return $this->getMostVisitedPagesForPeriod($id,$startDate, $endDate, $maxResults);
+    }
+
+    /**
+     * Get the most visited pages for the given period.
+     *
+     * @param $id
+     * @param DateTime $startDate
+     * @param DateTime $endDate
+     * @param int $maxResults
+     * @return Collection
+     */
+    public function getMostVisitedPagesForPeriod($id,$startDate, $endDate, $maxResults = 20)
+    {
+        $pagesData = [];
+        $answer = $this->query($id,$startDate, $endDate, 'ga:pageviews', ['dimensions' => 'ga:pagePath', 'sort' => '-ga:pageviews', 'max-results' => $maxResults]);
+        if (is_null($answer->rows)) {
+            return new Collection([]);
+        }
+        foreach ($answer->rows as $pageRow) {
+            $pagesData[] = ['url' => $pageRow[0], 'pageViews' => $pageRow[1]];
+        }
+        return new Collection($pagesData);
+    }
+
+    /**
+     * Returns an array with the current date and the date minus the number of days specified.
+     *
+     * @param int $numberOfDays
+     *
+     * @return array
+     */
+    private function calculateNumberOfDays($numberOfDays)
+    {
+        $endDate = Carbon::today()->format('Y-m-d');
+        $startDate = Carbon::today()->subDays($numberOfDays)->format('Y-m-d');
+        return [$startDate, $endDate];
+    }
 }
