@@ -1,4 +1,7 @@
 <?php namespace Thujohn\Analytics;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
+
 
 class Analytics {
 	protected $client;
